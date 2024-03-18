@@ -1,0 +1,11 @@
+﻿parameters:
+- name: ModuleName
+  type: string
+- name: RepoName
+  type: string
+
+steps:
+  - powershell: |
+      $installPath = Join-Path (Join-Path $env:ProgramFiles "WindowsPowerShell") "Modules"
+      Save-Module -Name '${{ parameters.ModuleName }}' -RequiredVersion '$(PackageVersion)' -AllowPrerelease -Path $installPath -Repository '${{ parameters.RepoName }}'
+    displayName: Install Module

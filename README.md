@@ -1,2 +1,2 @@
-# MMS-2024-Templates
-Pipeline Templates
+# AzureDevOpsTemplates
+Azure DevOps Pipeline Templates

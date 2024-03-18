@@ -1,0 +1,79 @@
+parameters:
+- name: ModuleName
+  type: string
+- name: FailOnTestFailure
+  type: boolean
+
+stages:
+- stage: Test
+  dependsOn: Build
+  jobs:
+    - job: Test
+      steps:
+      # https://github.com/PoshCode/Azure-Pipelines/blob/master/Install-RequiredModule-step.yml
+      - powershell: |
+          # Apparently, Install-Script isn't good enough except on Windows?
+          # Install-Script Install-RequiredModule -Force -Verbose
+          Save-Script Install-RequiredModule -Path '$(Pipeline.Workspace)'
+          &"$(Pipeline.Workspace)/Install-RequiredModule" -Path '$(Build.SourcesDirectory)/RequiredModules.psd1' -Confirm:$false -Verbose -TrustRegisteredRepositories
+          foreach ($installErr in $IRM_InstallErrors) {
+              Write-Warning "ERROR: $installErr"
+              Write-Warning "STACKTRACE: $($installErr.ScriptStackTrace)"
+          }
+        displayName: 'Restore pre-requisites'
+      - task: DownloadPipelineArtifact@2
+        inputs:
+          artifactName: ${{ parameters.ModuleName }}
+          targetPath: $(Build.ArtifactStagingDirectory)
+      - template: ../steps/test/custom-pssa-rules-step.yml
+      - template: ../steps/test/pssa-test-step.yml
+      - template: ../steps/test/help-test-step.yml
+        parameters:
+          ModuleName: ${{ parameters.ModuleName }}
+      - powershell: |
+          gci "$(Build.SourcesDirectory)\Tests"
+          get-content "$(Build.SourcesDirectory)\Tests\Help.Tests.ps1"
+          gci -recurse "$(Build.ArtifactStagingDirectory)"
+        enabled: ${{ eq(variables['System.Debug'], 'True') }}
+        displayName: Debug Test creation
+      - powershell: |
+          Import-Module Pester
+          Import-Module "$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}"
+
+          $Options = @{
+              Path = Convert-Path "$(Build.SourcesDirectory)\Tests"
+              OutputFormat = "NUnitXml"
+              OutputFile = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
+          }
+
+          if ($CodeCoverage = "$(Build.ArtifactStagingDirectory)\*") {
+              $Options.CodeCoverage = Get-ChildItem $CodeCoverage -Recurse -Include *.psm1, *.ps1 | Convert-Path
+              $Options.CodeCoverageOutputFile = '$(Common.TestResultsDirectory)/Coverage-$(Build.SourceVersion).xml'
+          }
+
+          Write-Host $($Options | Out-String)
+          if (!$PSVersionTable.OS) {
+              $PSVersionTable.OS = [System.Environment]::OSVersion
+          }
+
+          Write-Host "##vso[task.setvariable variable=PSPlatform]PowerShell $($PSVersionTable['PSVersion', 'OS'] -join ' on ')"
+          Write-Host "##vso[task.setvariable variable=CodeCovDir]$(Resolve-Path $CodeCoverage)"
+          Invoke-Pester @Options
+        displayName: Run Pester Tests
+      - task: PublishCodeCoverageResults@1
+        displayName: Publish Code Coverage
+        inputs:
+          summaryFileLocation: '$(Common.TestResultsDirectory)/Coverage-$(Build.SourceVersion).xml'
+          pathToSources: $(CodeCovDir)
+          failIfCoverageEmpty: true
+        condition: succeededOrFailed()
+      - task: PublishTestResults@2
+        displayName: Publish Test Results
+        inputs:
+          testResultsFormat: NUnit
+          testResultsFiles: '$(Common.TestResultsDirectory)/Test-$(Build.SourceVersion).xml'
+          buildPlatform: $(PSPlatform)
+          #buildConfiguration: ${{ parameters.configurationName }}
+          failTaskOnFailedTests: ${{ parameters.FailOnTestFailure }}
+          testRunTitle: "Pester on $(PSPlatform)"
+        condition: succeededOrFailed()

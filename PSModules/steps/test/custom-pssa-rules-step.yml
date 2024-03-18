@@ -1,0 +1,86 @@
+steps:
+- powershell: |
+    @'
+    function Measure-UnicodeSubstitutions {
+        <#
+    .SYNOPSIS
+        Does not contain unicode versions of dashes and hyphens
+    .DESCRIPTION
+        When copying code from the internet, sometimes quotes and hyphens are replaced with unicode characters
+        To fix this, replace the characters with "standard" characters
+    .EXAMPLE
+        Measure-RequiresRunAsAdministrator -ScriptBlockAst $ScriptBlockAst
+    .INPUTS
+        [System.Management.Automation.Language.ScriptBlockAst]
+    .OUTPUTS
+        [Microsoft.Windows.PowerShell.ScriptAnalyzer.Generic.DiagnosticRecord[]]
+    .NOTES
+        None
+    #>
+        [CmdletBinding()]
+        [OutputType([Microsoft.Windows.PowerShell.ScriptAnalyzer.Generic.DiagnosticRecord[]])]
+        Param
+        (
+            [Parameter(Mandatory = $true)]
+            [ValidateNotNullOrEmpty()]
+            [System.Management.Automation.Language.ScriptBlockAst]
+            $ScriptBlockAst
+        )
+
+        Process {
+            $results = @()
+            [ScriptBlock]$predicate = {
+                param ( $ast )
+
+                if ($ast -is [System.Management.Automation.Language.BinaryExpressionAst] -or
+                    $ast -is [System.Management.Automation.Language.CommandParameterAst] -or
+                    $ast -is [System.Management.Automation.Language.AssignmentStatementAst] -or
+                    $ast -is [System.Management.Automation.Language.UnaryExpressionAst] -or
+                    $ast -is [System.Management.Automation.Language.ConstantExpressionAst]) {
+
+                    if ($ast.Extent.Text[0] -in 0x2013, 0x2014, 0x2015) {
+                        return $true
+                    }
+                }
+
+                if (($ast -is [System.Management.Automation.Language.UnaryExpressionAst] -or
+                        $ast -is [System.Management.Automation.Language.BinaryExpressionAst]) -and
+                    $ast.Extent.Text -match '\u2013|\u2014|\u2015') {
+                    return $true
+                }
+
+                if ($ast -is [System.Management.Automation.Language.CommandAst] -and
+                    $ast.GetCommandName() -match '\u2013|\u2014|\u2015') {
+                    return $true
+                }
+
+                if (($ast -is [System.Management.Automation.Language.StringConstantExpressionAst] -or
+                        $ast -is [System.Management.Automation.Language.ExpandableStringExpressionAst]) -and
+                    (($ast.Parent -is [System.Management.Automation.Language.CommandExpressionAst]) -or
+                        $ast.Parent -is [System.Management.Automation.Language.BinaryExpressionAst])) {
+                    if ($ast.Parent -match '^[\u2018-\u201e]|[\u2018-\u201e]$') {
+                        return $true
+                    }
+                }
+            }
+            #endregion
+            #region Finds ASTs that match the predicates.
+
+            [System.Management.Automation.Language.Ast[]]$elements = $ScriptBlockAst.FindAll($predicate, $true)
+
+            foreach ($element in $elements) {
+                $result = [Microsoft.Windows.PowerShell.ScriptAnalyzer.Generic.DiagnosticRecord]@{
+                    'Message'  = "Bad unicode characters"
+                    'Extent'   = $element.Extent
+                    'RuleName' = $PSCmdlet.MyInvocation.InvocationName
+                    'Severity' = 'Error'
+                }
+                $results += $result
+            }
+
+            return $results
+            #endregion
+        }
+    }
+    '@ | Set-Content "$(Build.SourcesDirectory)\Tests\CustomRules.psm1"
+  displayName: Generate Custom PSSA Rules

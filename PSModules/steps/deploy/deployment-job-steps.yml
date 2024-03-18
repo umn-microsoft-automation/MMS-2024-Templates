@@ -1,0 +1,41 @@
+﻿parameters:
+  - name: RepoPath
+    type: string
+  - name: RepoName
+    type: string
+  - name: ModuleName
+    type: string
+
+steps:
+  - download: none
+  - template: register-psrepository-step.yml
+    parameters:
+      RepoPath: ${{ parameters.RepoPath }}
+      RepoName: ${{ parameters.RepoName }}
+  - template: install-module-step.yml
+    parameters:
+      ModuleName: ${{ parameters.ModuleName }}
+      RepoName: ${{ parameters.RepoName }}
+  - powershell: |
+      [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+      $installPath = Join-Path (Join-Path $env:ProgramFiles "WindowsPowerShell") "Modules"
+      $psd1 = Get-Module -ListAvailable ${{ parameters.ModuleName }} | Where-Object Version -eq '$(PackageVersion)'.Split('-')[0]
+      $module = (Import-PowerShellDataFile -Path $psd1.Path)
+      ($repos = Get-PSRepository)
+      if ($repos.Name -notcontains 'PSGallery') {
+        Write-Host "PowerShell Gallery not found, registering it now"
+        Register-PSRepository -Default -Verbose
+        Get-PSRepository
+      }
+      foreach ($req in $module.RequiredModules) {
+        if ($module.PrivateData.PSData.ExternalModuleDependencies -contains $req) {
+          if (-not (Get-Module -ListAvailable $req)) {
+            Write-Host "Module requires $req but it's not available, installing"
+            Save-Module -Name $req -Path $installPath
+          }
+        }
+      }
+    displayName: Install External Module Dependencies
+  - powershell: |
+      Import-Module ${{ parameters.ModuleName }} -RequiredVersion '$(PackageVersion)'.Split('-')[0]
+    displayName: Import Module to validate deployment

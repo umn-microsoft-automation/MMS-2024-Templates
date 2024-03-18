@@ -1,0 +1,113 @@
+parameters:
+- name: ModuleName
+  type: string
+- name: RepoPath
+  type: string
+- name: RepoName
+  type: string
+- name: DefaultBranch
+  type: string
+
+stages:
+- stage: Deploy
+  dependsOn: Test
+  #condition: and(succeeded(), eq(variables['build.sourceBranchName'], '${{ parameters.DefaultBranch }}'))
+  jobs:
+    - job: Publish
+      pool: Default
+      workspace:
+        clean: all
+      steps:
+      - checkout: self
+        fetchDepth: 1
+        persistCredentials: true
+      - task: DownloadPipelineArtifact@2
+        inputs:
+          artifactName: ${{ parameters.ModuleName }}
+          targetPath: $(Build.ArtifactStagingDirectory)
+      - powershell: |
+          $test = (Test-ModuleManifest -Path '$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}\*\${{ parameters.ModuleName }}.psd1')
+          if ($test.PrivateData.PSData.Prerelease) {
+            $version = "$($test.version)-$($test.PrivateData.PSData.Prerelease)"
+          } else {
+            $version = $test.Version.ToString()
+          }
+          Write-Host "INFO [task.setvariable variable=PackageVersion;isOutput=true]$version"
+          Write-Host "##vso[task.setvariable variable=PackageVersion;isOutput=true]$version"
+        displayName: Version Module
+        name: VersionModule
+      - task: ArchiveFiles@2
+        inputs:
+          rootFolderOrFile: '$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}'
+          includeRootFolder: true
+          archiveType: zip
+          archiveFile: '$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}.zip'
+        condition: and(succeeded(), eq(variables['build.sourceBranchName'], '${{ parameters.DefaultBranch }}'))
+      - powershell: |
+          if ($env:SYSTEM_DEBUG -eq 'true') {
+            [Net.ServicePointManager]::SecurityProtocol
+          }
+          [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+          if ($env:SYSTEM_DEBUG -eq 'true') {
+            [Net.ServicePointManager]::SecurityProtocol
+          }
+          if ($env:SYSTEM_DEBUG -eq 'true') {
+            gci env:
+            git --no-pager config --list
+          }
+
+          $repositoryUri = $Env:BUILD_REPOSITORY_URI
+          $authKeyName = "http.$repositoryUri.extraheader"
+          if ($env:SYSTEM_DEBUG -eq 'true') {
+            write-host "auth key name $authKeyName"
+          }
+          $authKey = git config --get $authKeyName
+          if ($env:SYSTEM_DEBUG -eq 'true') {
+            write-host "auth key $authKey"
+          }
+
+          $uribuilder = [System.UriBuilder]$repositoryUri
+          if ($uribuilder.Host -eq "github.com") {
+              $ghHost = "api.github.com"
+          } else {
+              $ghHost = $uribuilder.Host
+          }
+          $uribase = $uribuilder.Scheme + "://" + $ghHost + "/api/v3/"
+
+          $uri = $uribase + "repos" + $uribuilder.Path + "/releases"
+          $ghHeader = @{ Authorization = $authKey.split(':').trim()[1] }
+
+          $body = @{
+            tag_name="v$env:VERSIONMODULE_PACKAGEVERSION"
+            target_commitish= "$(Build.SourceVersion)"
+            name = "${{ parameters.ModuleName }} v$env:VERSIONMODULE_PACKAGEVERSION"
+            } | ConvertTo-Json
+          write-host $body
+          ($release = Invoke-RestMethod -Uri $uri -Headers $ghHeader -Body $body -Method Post)
+
+          $uploadurl = ($release.upload_url).Split('{')[0] + '?name=${{ parameters.ModuleName }}.zip'
+          ($asset = Invoke-RestMethod -Uri $uploadurl -Method Post -InFile '$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}.zip' -Headers $ghHeader -ContentType 'application/zip')
+        displayName: Publish Release
+        condition: and(succeeded(), eq(variables['build.sourceBranchName'], '${{ parameters.DefaultBranch }}'))
+      - template: ../steps/deploy/register-psrepository-step.yml
+        parameters:
+          RepoPath: ${{ parameters.RepoPath }}
+          RepoName: ${{ parameters.RepoName }}
+      - powershell: |
+          if ($env:SYSTEM_DEBUG -eq 'true') {
+            Write-Host "$(Agent.TempDirectory)"
+            gci "$(Agent.TempDirectory)"
+          }
+          $module = (Import-PowerShellDataFile -Path '$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}\*\${{ parameters.ModuleName }}.psd1')
+          foreach ($req in $module.RequiredModules) {
+            Save-Module -Name $req -Path $(Agent.TempDirectory)
+          }
+        displayName: Download Module Dependencies
+      - powershell: |
+          $env:PSModulePath = $env:PSModulePath + [System.IO.Path]::PathSeparator + "$(Agent.TempDirectory)"
+          if ($env:SYSTEM_DEBUG -eq 'true') {
+            gci "$(Agent.TempDirectory)"
+          }
+          Publish-Module -Path '$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}\*' -Repository '${{ parameters.RepoName }}' -Force
+        displayName: Publish Module
+        name: PublishModule

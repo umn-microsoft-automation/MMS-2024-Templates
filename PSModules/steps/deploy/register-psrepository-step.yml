@@ -1,0 +1,20 @@
+﻿parameters:
+  - name: RepoPath
+    type: string
+  - name: RepoName
+    type: string
+
+steps:
+  - powershell: |
+      $repoPath = "${{ parameters.RepoPath }}"
+      $repoName = "${{ parameters.RepoName }}"
+      $FSRepo = Get-PSRepository | Where-Object name -eq $repoName
+      if (-not $FSRepo) {
+        Write-Host "Repo not found, creating"
+        Register-PSRepository -Name $repoName -SourceLocation $repoPath -PublishLocation $repoPath -ScriptSourceLocation $repoPath -ScriptPublishLocation $repoPath -InstallationPolicy Trusted
+      } elseif (($FSRepo.SourceLocation -ne $repoPath) -or ($FSRepo.PublishLocation -ne $repoPath)) {
+        Write-Host "Repo found but wrong location, deleting and recreating"
+        Unregister-PSRepository -Name $repoName
+        Register-PSRepository -Name $repoName -SourceLocation $repoPath -PublishLocation $repoPath -ScriptSourceLocation $repoPath -ScriptPublishLocation $repoPath -InstallationPolicy Trusted
+      }
+    displayName: Register PSRepository

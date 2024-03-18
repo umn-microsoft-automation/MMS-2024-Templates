@@ -1,0 +1,31 @@
+# template
+parameters:
+- name: ModuleName
+  type: string
+- name: RepoPath
+  type: string
+- name: RepoName
+  type: string
+- name: FailOnTestFailure
+  type: boolean
+  default: true
+- name: DefaultBranch
+  type: string
+  default: master
+- name: GitHubPAT
+  type: string
+  default: "not needed"
+
+stages:
+- template: stages/build-module.yml
+  parameters:
+    ModuleName: ${{ parameters.ModuleName }}
+- template: stages/test-module.yml
+  parameters:
+    ModuleName: ${{ parameters.ModuleName }}
+    FailOnTestFailure: ${{ parameters.FailOnTestFailure }}
+- template: stages/deploy-module-publish-only.yml
+  parameters:
+    ModuleName: ${{ parameters.ModuleName }}
+    RepoPath: ${{ parameters.RepoPath }}
+    RepoName: ${{ parameters.RepoName }}

@@ -1,0 +1,48 @@
+parameters:
+- name: ModuleName
+  type: string
+
+stages:
+- stage: Build
+  jobs:
+    - job: Build
+      steps:
+        - task: gitversion/setup@0
+          inputs:
+            versionSpec: '5.x'
+        # https://github.com/PoshCode/Azure-Pipelines/blob/master/Install-RequiredModule-step.yml
+        - powershell: |
+            # Apparently, Install-Script isn't good enough except on Windows?
+            # Install-Script Install-RequiredModule -Force -Verbose
+            Save-Script Install-RequiredModule -Path '$(Pipeline.Workspace)'
+            &"$(Pipeline.Workspace)/Install-RequiredModule" -Path '$(Build.SourcesDirectory)/RequiredModules.psd1' -Confirm:$false -Verbose -TrustRegisteredRepositories
+            foreach ($installErr in $IRM_InstallErrors) {
+                Write-Warning "ERROR: $installErr"
+                Write-Warning "STACKTRACE: $($installErr.ScriptStackTrace)"
+            }
+          displayName: 'Restore pre-requisites'
+        - powershell: |
+            if (-not (test-path '$(Build.SourcesDirectory)/GitVersion.yml')) {
+                "mode: Mainline" | Set-Content '$(Build.SourcesDirectory)/GitVersion.yml'
+            }
+          displayName: Create gitversion.yml if none exists
+        - task: gitversion/execute@0
+        - powershell: |
+            gci env:
+          displayName: test environment
+          enabled: ${{ eq(variables['System.Debug'], 'True') }}
+        - powershell: |
+            # A valid Nuget version allows a hyphen in the prerelease string, and on a pull request build,
+            # the gitversion generated nuget version will have a hyphen in the prerelease string (example: "1.2.8-pullrequest0003-0016")
+            # However Publish-Module will not accept a hyphen (https://github.com/PowerShell/PowerShellGetv2/issues/561)
+            # This will "normalize" the prerelease string and replace any hyphens with a b (for build)
+            $semver = '$(GitVersion.NuGetVersion)'
+            $version, $prerelease = $semver -split '-', 2
+            if ($prerelease) {
+                $validPreRelease = $prerelease -replace '-', 'b'
+                $semver = $version + '-' + $validPreRelease
+            }
+            Build-Module -OutputDirectory '$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}' -SemVer $semver -VersionedOutputDirectory -Verbose
+          displayName: 'Build Module'
+        - publish: $(Build.ArtifactStagingDirectory)
+          artifact: ${{ parameters.ModuleName }}
