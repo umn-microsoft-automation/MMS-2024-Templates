@@ -12,9 +12,6 @@ parameters:
 - name: DefaultBranch
   type: string
   default: master
-- name: GitHubPAT
-  type: string
-  default: "not needed"
 
 stages:
 - template: stages/build-module.yml
