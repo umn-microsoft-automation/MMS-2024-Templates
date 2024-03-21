@@ -7,7 +7,7 @@ stages:
   jobs:
     - job: Build
       steps:
-        - task: gitversion/setup@0
+        - task: gitversion/setup@1
           inputs:
             versionSpec: '5.x'
         # https://github.com/PoshCode/Azure-Pipelines/blob/master/Install-RequiredModule-step.yml
@@ -26,7 +26,7 @@ stages:
                 "mode: Mainline" | Set-Content '$(Build.SourcesDirectory)/GitVersion.yml'
             }
           displayName: Create gitversion.yml if none exists
-        - task: gitversion/execute@0
+        - task: gitversion/execute@1
         - powershell: |
             gci env:
           displayName: test environment
