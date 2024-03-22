@@ -11,7 +11,7 @@ parameters:
   default: true
 - name: DefaultBranch
   type: string
-  default: master
+  default: main
 
 stages:
 - template: stages/build-module.yml
