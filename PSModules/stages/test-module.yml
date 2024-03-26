@@ -47,11 +47,8 @@ stages:
           }
 
           $pesterConfig = New-PesterConfiguration -Hashtable $options
-
-          if ($CodeCoverage = "$(Build.ArtifactStagingDirectory)\*") {
-              $pesterConfig.CodeCoverage = Get-ChildItem $CodeCoverage -Recurse -Include *.psm1, *.ps1 | Convert-Path
-              $pesterConfig.CodeCoverageOutputFile = '$(Common.TestResultsDirectory)/Coverage-$(Build.SourceVersion).xml'
-          }
+          $pesterConfig.CodeCoverage.Enabled = $true
+          $pesterConfig.CodeCoverageOutputFile = '$(Common.TestResultsDirectory)/Coverage-$(Build.SourceVersion).xml'
 
           Write-Host $($pesterConfig | Out-String)
           if (!$PSVersionTable.OS) {
