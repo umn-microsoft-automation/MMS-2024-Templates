@@ -43,12 +43,11 @@ stages:
           $Options = @{
               Path = Convert-Path "$(Build.SourcesDirectory)\Tests"
               OutputFormat = "NUnitXml"
-              OutputFile = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
+              OutputPath = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
           }
 
           $pesterConfig = New-PesterConfiguration -Hashtable $options
           $pesterConfig.CodeCoverage.Enabled = $true
-          $pesterConfig.CodeCoverageOutputFile = '$(Common.TestResultsDirectory)/Coverage-$(Build.SourceVersion).xml'
 
           Write-Host $($pesterConfig | Out-String)
           if (!$PSVersionTable.OS) {
