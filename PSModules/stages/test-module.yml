@@ -60,7 +60,7 @@ stages:
           Write-Host "##vso[task.setvariable variable=CodeCovDir]$(Resolve-Path $CodeCoverage)"
           Invoke-Pester @Options
         displayName: Run Pester Tests
-      - task: PublishCodeCoverageResults@1
+      - task: PublishCodeCoverageResults@2
         displayName: Publish Code Coverage
         inputs:
           summaryFileLocation: '$(Common.TestResultsDirectory)/Coverage-$(Build.SourceVersion).xml'
