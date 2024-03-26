@@ -40,11 +40,9 @@ stages:
           Import-Module Pester
           Import-Module "$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}"
 
-          $Options = @{
-              Path = Convert-Path "$(Build.SourcesDirectory)\Tests"
-              OutputFormat = "NUnitXml"
-              OutputFile = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
-          }
+          $Path = Convert-Path "$(Build.SourcesDirectory)\Tests"
+          $OutputFormat = "NUnitXml"
+          $OutputFile = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
 
           if ($CodeCoverage = "$(Build.ArtifactStagingDirectory)\*") {
               $Options.CodeCoverage = Get-ChildItem $CodeCoverage -Recurse -Include *.psm1, *.ps1 | Convert-Path
@@ -58,7 +56,7 @@ stages:
 
           Write-Host "##vso[task.setvariable variable=PSPlatform]PowerShell $($PSVersionTable['PSVersion', 'OS'] -join ' on ')"
           Write-Host "##vso[task.setvariable variable=CodeCovDir]$(Resolve-Path $CodeCoverage)"
-          Invoke-Pester @Options
+          Invoke-Pester -Path $path -OutputFile $OutputFile -OutputFormat $outputFormat
         displayName: Run Pester Tests
       - task: PublishCodeCoverageResults@2
         displayName: Publish Code Coverage
