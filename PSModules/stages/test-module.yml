@@ -40,23 +40,27 @@ stages:
           Import-Module Pester
           Import-Module "$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}"
 
-          $Path = Convert-Path "$(Build.SourcesDirectory)\Tests"
-          $OutputFormat = "NUnitXml"
-          $OutputFile = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
-
-          if ($CodeCoverage = "$(Build.ArtifactStagingDirectory)\*") {
-              $Options.CodeCoverage = Get-ChildItem $CodeCoverage -Recurse -Include *.psm1, *.ps1 | Convert-Path
-              $Options.CodeCoverageOutputFile = '$(Common.TestResultsDirectory)/Coverage-$(Build.SourceVersion).xml'
+          $Options = @{
+              Path = Convert-Path "$(Build.SourcesDirectory)\Tests"
+              OutputFormat = "NUnitXml"
+              OutputFile = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
           }
 
-          Write-Host $($Options | Out-String)
+          $pesterConfig = New-PesterConfiguration -Hashtable $options
+
+          if ($CodeCoverage = "$(Build.ArtifactStagingDirectory)\*") {
+              $pesterConfig.CodeCoverage = Get-ChildItem $CodeCoverage -Recurse -Include *.psm1, *.ps1 | Convert-Path
+              $pesterConfig.CodeCoverageOutputFile = '$(Common.TestResultsDirectory)/Coverage-$(Build.SourceVersion).xml'
+          }
+
+          Write-Host $($pesterConfig | Out-String)
           if (!$PSVersionTable.OS) {
               $PSVersionTable.OS = [System.Environment]::OSVersion
           }
 
           Write-Host "##vso[task.setvariable variable=PSPlatform]PowerShell $($PSVersionTable['PSVersion', 'OS'] -join ' on ')"
           Write-Host "##vso[task.setvariable variable=CodeCovDir]$(Resolve-Path $CodeCoverage)"
-          Invoke-Pester -Path $path -OutputFile $OutputFile -OutputFormat $outputFormat
+          invoke-Pester -Configuration $pesterConfig
         displayName: Run Pester Tests
       - task: PublishCodeCoverageResults@2
         displayName: Publish Code Coverage
