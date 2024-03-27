@@ -40,11 +40,15 @@ stages:
           Import-Module Pester
           Import-Module "$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}"
 
+          $outputPath = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
+          $path = Convert-Path "$(Build.SourcesDirectory)\Tests"
+          $outputFormat = "NUnitXml"
+
           $pesterConfig = New-PesterConfiguration
           $pesterConfig.codeCoverage.Enabled = $true
-          $pesterConfig.codeCoverage.outputformat = "NUnitXml"
-          $pesterConfig.codeCoverage.outputPath = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
-          $pesterConfig.codeCoverage.path = Convert-Path "$(Build.SourcesDirectory)\Tests"
+          $pesterConfig.codeCoverage.outputformat = $outputFormat
+          $pesterConfig.codeCoverage.outputPath = $outputPath
+          $pesterConfig.codeCoverage.path = $path
 
           Write-Host $($pesterConfig | Out-String)
           if (!$PSVersionTable.OS) {
