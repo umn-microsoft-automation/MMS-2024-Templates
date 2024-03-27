@@ -40,15 +40,14 @@ stages:
           Import-Module Pester
           Import-Module "$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}"
 
-          $outputPath = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
-          $path = Convert-Path "$(Build.SourcesDirectory)\Tests"
-          $outputFormat = "NUnitXml"
+          $Path = Convert-Path "$(Build.SourcesDirectory)\Tests"
+          $OutputFormat = "NUnitXml"
+          $OutputFile = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
 
-          $pesterConfig = New-PesterConfiguration
-          $pesterConfig.codeCoverage.Enabled = $true
-          $pesterConfig.codeCoverage.outputformat = $outputFormat
-          $pesterConfig.codeCoverage.outputPath = $outputPath
-          $pesterConfig.codeCoverage.path = $path
+          if ($CodeCoverage = "$(Build.ArtifactStagingDirectory)\*") {
+              $CodeCoverage = Get-ChildItem $CodeCoverage -Recurse -Include *.psm1, *.ps1 | Convert-Path
+              $CodeCoverageOutputFile = '$(Common.TestResultsDirectory)/Coverage-$(Build.SourceVersion).xml'
+          }
 
           Write-Host $($pesterConfig | Out-String)
           if (!$PSVersionTable.OS) {
@@ -57,7 +56,8 @@ stages:
 
           Write-Host "##vso[task.setvariable variable=PSPlatform]PowerShell $($PSVersionTable['PSVersion', 'OS'] -join ' on ')"
           Write-Host "##vso[task.setvariable variable=CodeCovDir]$(Resolve-Path $CodeCoverage)"
-          invoke-Pester -Configuration $pesterConfig
+          Invoke-Pester -CodeCoverage $CodeCoverage -CodeCoverageOutputFile $codeCoverageOutputFile -OutputFile $outputFile -OutputFormat $OutputFormat -Path $path
+
         displayName: Run Pester Tests
       - task: PublishCodeCoverageResults@2
         displayName: Publish Code Coverage
