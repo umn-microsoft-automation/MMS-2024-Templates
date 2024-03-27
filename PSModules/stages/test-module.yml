@@ -48,9 +48,12 @@ stages:
           $pesterConfig = New-PesterConfiguration
           $pesterConfig.CodeCoverage.Enabled = $true
           $pesterConfig.CodeCoverage.Path = (Convert-Path "$(Build.SourcesDirectory)\Tests")
-          $pesterConfig.CodeCoverage.OutputFormat = "NUnitXml"
-          $pesterConfig.CodeCoverage.OutputPath = (Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml')
+          $pesterConfig.CodeCoverage.OutputFormat = "JaCoCo"
+          $pesterConfig.CodeCoverage.OutputPath = (Join-Path '$(Common.TestResultsDirectory)' 'Coverage-$(Build.SourceVersion).xml')
           $pesterConfig.Run.Path = (Convert-Path "$(Build.SourcesDirectory)\Tests")
+          $pesterConfig.TestResult.Enabled = $true
+          $pesterConfig.TestResult.OutputFormat = "NUnitXml"
+          $pesterConfig.TestResult.OutputFile = (Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml')
 
           Write-Host $($pesterConfig | Out-String)
           if (!$PSVersionTable.OS) {
