@@ -27,7 +27,6 @@ stages:
           targetPath: $(Build.ArtifactStagingDirectory)
       - template: ../steps/test/custom-pssa-rules-step.yml
       - template: ../steps/test/pssa-test-step.yml
-      - template: ../steps/test/help-test-step.yml
         parameters:
           ModuleName: ${{ parameters.ModuleName }}
       - powershell: |
@@ -35,6 +34,7 @@ stages:
           get-content "$(Build.SourcesDirectory)\Tests\Help.Tests.ps1"
           gci -recurse "$(Build.ArtifactStagingDirectory)"
         displayName: Debug Test creation
+        enabled: ${{ eq(variables['System.Debug'], 'True') }}
       - powershell: |
           Import-Module Pester
           Import-Module "$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}"
@@ -60,6 +60,14 @@ stages:
 
           Write-Host "##vso[task.setvariable variable=PSPlatform]PowerShell $($PSVersionTable['PSVersion', 'OS'] -join ' on ')"
           Write-Host "##vso[task.setvariable variable=CodeCovDir]$(Resolve-Path $CodeCoverage)"
+          $pesterConfig.Run.Path
+          $pesterConfig.CodeCoverage.Enabled
+          $pesterConfig.CodeCoverage.OutputFormat
+          $pesterConfig.CodeCoverage.OutputPath
+          $pesterConfig.CodeCoverage.Path
+
+          $pesterConfig.TestResult
+
           Invoke-Pester -Configuration $pesterConfig
         displayName: Run Pester Tests
       - task: PublishCodeCoverageResults@2
