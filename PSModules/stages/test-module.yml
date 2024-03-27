@@ -45,7 +45,7 @@ stages:
               $CodeCoverageOutputFile = '$(Common.TestResultsDirectory)\Coverage-$(Build.SourceVersion).xml'
           }
 
-          $pesterConfig = New-PesterConfiguration -Hashtable $options
+          $pesterConfig = New-PesterConfiguration
           $pesterConfig.CodeCoverage.Enabled = $true
           $pesterConfig.CodeCoverage.Path = (Convert-Path "$(Build.SourcesDirectory)\Tests")
           $pesterConfig.CodeCoverage.OutputFormat = "NUnitXml"
