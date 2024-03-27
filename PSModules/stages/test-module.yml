@@ -27,6 +27,7 @@ stages:
           targetPath: $(Build.ArtifactStagingDirectory)
       - template: ../steps/test/custom-pssa-rules-step.yml
       - template: ../steps/test/pssa-test-step.yml
+      - template: ../steps/test/help-test-step.yml
         parameters:
           ModuleName: ${{ parameters.ModuleName }}
       - powershell: |
@@ -39,19 +40,17 @@ stages:
           Import-Module Pester
           Import-Module "$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}"
 
-          $Options = @{
-              Path = Convert-Path "$(Build.SourcesDirectory)\Tests"
-              OutputFormat = "NUnitXml"
-              OutputFile = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
-          }
-
           if ($CodeCoverage = "$(Build.ArtifactStagingDirectory)\*") {
-              $Options.CodeCoverage = Get-ChildItem $CodeCoverage -Recurse -Include *.psm1, *.ps1 | Convert-Path
-              $Options.CodeCoverageOutputFile = '$(Common.TestResultsDirectory)/Coverage-$(Build.SourceVersion).xml'
+              $CodeCoveragePath = Get-ChildItem $CodeCoverage -Recurse -Include *.psm1, *.ps1 | Convert-Path
+              $CodeCoverageOutputFile = '$(Common.TestResultsDirectory)\Coverage-$(Build.SourceVersion).xml'
           }
 
           $pesterConfig = New-PesterConfiguration -Hashtable $options
           $pesterConfig.CodeCoverage.Enabled = $true
+          $pesterConfig.CodeCoverage.Path = (Convert-Path "$(Build.SourcesDirectory)\Tests")
+          $pesterConfig.CodeCoverage.OutputFormat = "NUnitXml"
+          $pesterConfig.CodeCoverage.OutputFile = (Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml')
+          $pesterConfig.Path = (Convert-Path "$(Build.SourcesDirectory)\Tests")
 
           Write-Host $($pesterConfig | Out-String)
           if (!$PSVersionTable.OS) {
@@ -60,20 +59,13 @@ stages:
 
           Write-Host "##vso[task.setvariable variable=PSPlatform]PowerShell $($PSVersionTable['PSVersion', 'OS'] -join ' on ')"
           Write-Host "##vso[task.setvariable variable=CodeCovDir]$(Resolve-Path $CodeCoverage)"
-          $pesterConfig.Run.Path
-          $pesterConfig.CodeCoverage.Enabled
-          $pesterConfig.CodeCoverage.OutputFormat
-          $pesterConfig.CodeCoverage.OutputPath
-          $pesterConfig.CodeCoverage.Path
-
-          $pesterConfig.TestResult
 
           Invoke-Pester -Configuration $pesterConfig
         displayName: Run Pester Tests
       - task: PublishCodeCoverageResults@2
         displayName: Publish Code Coverage
         inputs:
-          summaryFileLocation: '$(Common.TestResultsDirectory)/Coverage-$(Build.SourceVersion).xml'
+          summaryFileLocation: '$(Common.TestResultsDirectory)\Coverage-$(Build.SourceVersion).xml'
           pathToSources: $(CodeCovDir)
           failIfCoverageEmpty: true
         condition: succeededOrFailed()
@@ -81,7 +73,7 @@ stages:
         displayName: Publish Test Results
         inputs:
           testResultsFormat: NUnit
-          testResultsFiles: '$(Common.TestResultsDirectory)/Test-$(Build.SourceVersion).xml'
+          testResultsFiles: '$(Common.TestResultsDirectory)\Test-$(Build.SourceVersion).xml'
           buildPlatform: $(PSPlatform)
           #buildConfiguration: ${{ parameters.configurationName }}
           failTaskOnFailedTests: ${{ parameters.FailOnTestFailure }}
