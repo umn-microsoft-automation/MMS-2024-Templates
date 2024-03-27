@@ -84,3 +84,4 @@ steps:
     }
     '@ | Set-Content "$(Build.SourcesDirectory)\Tests\CustomRules.psm1"
   displayName: Generate Custom PSSA Rules
+
