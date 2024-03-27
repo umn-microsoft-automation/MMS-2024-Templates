@@ -42,14 +42,14 @@ stages:
 
           if ($CodeCoverage = "$(Build.ArtifactStagingDirectory)\*") {
               $CodeCoveragePath = Get-ChildItem $CodeCoverage -Recurse -Include *.psm1, *.ps1 | Convert-Path
-              $CodeCoverageOutputFile = '$(Common.TestResultsDirectory)\Coverage-$(Build.SourceVersion).xml'
+              $CodeCoverageOutputPath = '$(Common.TestResultsDirectory)\Coverage-$(Build.SourceVersion).xml'
           }
 
           $pesterConfig = New-PesterConfiguration
           $pesterConfig.CodeCoverage.Enabled = $true
-          $pesterConfig.CodeCoverage.Path = (Convert-Path "$(Build.SourcesDirectory)\Tests")
+          $pesterConfig.CodeCoverage.Path = $codeCoveragePath
           $pesterConfig.CodeCoverage.OutputFormat = "JaCoCo"
-          $pesterConfig.CodeCoverage.OutputPath = (Join-Path '$(Common.TestResultsDirectory)' 'Coverage-$(Build.SourceVersion).xml')
+          $pesterConfig.CodeCoverage.OutputPath = $CodeCoverageOutputPath
           $pesterConfig.Run.Path = (Convert-Path "$(Build.SourcesDirectory)\Tests")
           $pesterConfig.TestResult.Enabled = $true
           $pesterConfig.TestResult.OutputFormat = "NUnitXml"
