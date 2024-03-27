@@ -34,5 +34,3 @@ steps:
     }
     '@ | Set-Content "$(Build.SourcesDirectory)\Tests\Help.Tests.ps1"
   displayName: Generate Help Tests
-- publish: $(Build.ArtifactStagingDirectory)
-    artifact: "help-build.ps1"
