@@ -10,7 +10,7 @@ steps:
       }
 
       It "Can have custom rules" {
-        "$(Build.SourcesDirectory)\Tests\CustomRules.psm1" | Should Exist
+        "$(Build.SourcesDirectory)\Tests\CustomRules.psm1" | Should -Exist
         if ($CustomRules = Get-ScriptAnalyzerRule -CustomRulePath "$(Build.SourcesDirectory)\Tests\CustomRules.psm1" -RecurseCustomRulePath) {
         $ScriptAnalyzer.Rules += $CustomRules
         $ScriptAnalyzer.Config += @{
