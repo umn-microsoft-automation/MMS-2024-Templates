@@ -34,7 +34,6 @@ stages:
           gci "$(Build.SourcesDirectory)\Tests"
           get-content "$(Build.SourcesDirectory)\Tests\Help.Tests.ps1"
           gci -recurse "$(Build.ArtifactStagingDirectory)"
-        enabled: ${{ eq(variables['System.Debug'], 'True') }}
         displayName: Debug Test creation
       - powershell: |
           Import-Module Pester
