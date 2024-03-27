@@ -50,7 +50,7 @@ stages:
           $pesterConfig.CodeCoverage.Path = (Convert-Path "$(Build.SourcesDirectory)\Tests")
           $pesterConfig.CodeCoverage.OutputFormat = "NUnitXml"
           $pesterConfig.CodeCoverage.OutputPath = (Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml')
-          $pesterConfig.Path = (Convert-Path "$(Build.SourcesDirectory)\Tests")
+          $pesterConfig.Run.Path = (Convert-Path "$(Build.SourcesDirectory)\Tests")
 
           Write-Host $($pesterConfig | Out-String)
           if (!$PSVersionTable.OS) {
