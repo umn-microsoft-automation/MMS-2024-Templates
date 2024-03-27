@@ -40,7 +40,7 @@ stages:
           Import-Module Pester
           Import-Module "$(Build.ArtifactStagingDirectory)\${{ parameters.ModuleName }}"
 
-          $pesterConfig = New-PesterConfiguration -Hashtable $options
+          $pesterConfig = New-PesterConfiguration
           $pesterConfig.codeCoverage.Enabled = $true
           $pesterConfig.codeCoverage.outputformat = "NUnitXml"
           $pesterConfig.codeCoverage.outputPath = Join-Path '$(Common.TestResultsDirectory)' 'Test-$(Build.SourceVersion).xml'
