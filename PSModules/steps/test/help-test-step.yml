@@ -6,10 +6,9 @@ steps:
 - powershell: |
     @'
     Describe "Help tests for ${{ parameters.ModuleName }}" -Tags 'Build' {
-
       $functions = Get-Command -Module ${{ parameters.ModuleName }} -CommandType Function
       foreach($Function in $Functions){
-        Context $help.name {
+        Context $Function.name {
           BeforeAll{
             $help = Get-Help $Function.name
           }
