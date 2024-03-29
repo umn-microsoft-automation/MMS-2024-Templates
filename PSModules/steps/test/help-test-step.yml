@@ -9,8 +9,10 @@ steps:
 
       $functions = Get-Command -Module ${{ parameters.ModuleName }} -CommandType Function
       foreach($Function in $Functions){
-        $help = Get-Help $Function.name
         Context $help.name {
+          BeforeAll{
+            $help = Get-Help $Function.name
+          }
           it "Has a synopsis" {
             $help.synopsis | Should -Not -BeNullOrEmpty
           }
