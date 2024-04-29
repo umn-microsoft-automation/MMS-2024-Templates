@@ -25,11 +25,11 @@ stages:
         inputs:
           artifactName: ${{ parameters.ModuleName }}
           targetPath: $(Build.ArtifactStagingDirectory)
-      # - template: ../steps/test/custom-pssa-rules-step.yml
-      # - template: ../steps/test/pssa-test-step.yml
-      # - template: ../steps/test/help-test-step.yml
-      #   parameters:
-      #     ModuleName: ${{ parameters.ModuleName }}
+      - template: ../steps/test/custom-pssa-rules-step.yml
+      - template: ../steps/test/pssa-test-step.yml
+      - template: ../steps/test/help-test-step.yml
+        parameters:
+          ModuleName: ${{ parameters.ModuleName }}
       - powershell: |
           gci "$(Build.SourcesDirectory)\Tests"
           get-content "$(Build.SourcesDirectory)\Tests\Help.Tests.ps1"
