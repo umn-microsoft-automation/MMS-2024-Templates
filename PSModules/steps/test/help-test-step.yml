@@ -6,32 +6,33 @@ steps:
 - powershell: |
     @'
     Describe "Help tests for ${{ parameters.ModuleName }}" -Tags 'Build' {
-      $functions = Get-Command -Module ${{ parameters.ModuleName }} -CommandType Function
-      foreach($Function in $Functions){
-        Context "Tests for ($Function.name)" {
-          BeforeAll{
-            $help = Get-Help $($Function.name)
-          }
-          it "Has a synopsis" {
+        $functions = Get-Command -Module ${{ parameters.ModuleName }} -CommandType Function
+        foreach($Function in $Functions){
+        Context "Tests for $($Function.name)" {
+            BeforeAll{
+            $name = $function.name
+            $help = Get-Help $name
+            }
+            it "Has a synopsis" {
             $help.synopsis | Should -Not -BeNullOrEmpty
-          }
-          it "Has a description" {
+            }
+            it "Has a description" {
             $help.description | Should -Not -BeNullOrEmpty
-          }
-          it "Has an example" {
+            }
+            it "Has an example" {
             $help.examples | Should -Not -BeNullOrEmpty
-          }
-          foreach($parameter in $help.parameters.parameter)
-          {
+            }
+            foreach($parameter in $help.parameters.parameter)
+            {
             if($parameter -notmatch 'whatif|confirm')
             {
-              it "Has a Parameter description for '$($parameter.name)'" {
+                it "Has a Parameter description for '$($parameter.name)'" {
                 $parameter.Description.text | Should -Not -BeNullOrEmpty
-              }
+                }
             }
-          }
+            }
         }
-      }
+        }
     }
-    '@ | Set-Content "$(Build.SourcesDirectory)\Tests\Help.Tests.ps1"
+    '@
   displayName: Generate Help Tests
