@@ -1,9 +1,8 @@
 steps:
 - powershell: |
     @'
-    $Path = "$(Build.ArtifactStagingDirectory)"
-
     Describe "PSScriptAnalyzer" {
+      $Path = "$(Build.ArtifactStagingDirectory)"
       $ScriptAnalyzer = @{
         Config = @{ Path = $Path; Recurse = $true; IncludeDefaultRules = $true }
         Rules = Get-ScriptAnalyzerRule
@@ -18,7 +17,6 @@ steps:
             RecurseCustomRulePath = $true
         }
         }
-
       }
 
       It "Does not throw while running Script Analyzer" {
