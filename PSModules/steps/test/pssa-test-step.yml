@@ -2,45 +2,50 @@ steps:
 - powershell: |
     @'
     Describe "PSScriptAnalyzer" {
-      $Path = "$(Build.ArtifactStagingDirectory)"
-      $ScriptAnalyzer = @{
-        Config = @{ Path = $Path; Recurse = $true; IncludeDefaultRules = $true }
-        Rules = Get-ScriptAnalyzerRule
-      }
+        Context "Test pssa and custom rules" {
+            BeforeAll{
+                $Path = "$(Build.ArtifactStagingDirectory)"
+                $ScriptAnalyzer = @{
+                Config = @{ Path = $Path; Recurse = $true; IncludeDefaultRules = $true }
+                Rules = Get-ScriptAnalyzerRule
+            }
+            It "Can have custom rules" {
+                "$(Build.SourcesDirectory)\Tests\CustomRules.psm1" | Should -Exist
+                if ($CustomRules = Get-ScriptAnalyzerRule -CustomRulePath "$(Build.SourcesDirectory)\Tests\CustomRules.psm1" -RecurseCustomRulePath) {
+                $ScriptAnalyzer.Rules += $CustomRules
+                $ScriptAnalyzer.Config += @{
+                    CustomRulePath        = "$(Build.SourcesDirectory)\Tests\CustomRules.psm1"
+                    RecurseCustomRulePath = $true
+                  }
+                }
+            }
 
-      It "Can have custom rules" {
-        "$(Build.SourcesDirectory)\Tests\CustomRules.psm1" | Should -Exist
-        if ($CustomRules = Get-ScriptAnalyzerRule -CustomRulePath "$(Build.SourcesDirectory)\Tests\CustomRules.psm1" -RecurseCustomRulePath) {
-        $ScriptAnalyzer.Rules += $CustomRules
-        $ScriptAnalyzer.Config += @{
-            CustomRulePath        = "$(Build.SourcesDirectory)\Tests\CustomRules.psm1"
-            RecurseCustomRulePath = $true
-        }
-        }
-      }
+            It "Does not throw while running Script Analyzer" {
+                $Config = $ScriptAnalyzer.Config
+                try {
+                    $ScriptAnalyzer.Results = Invoke-ScriptAnalyzer @Config
+                }
+                catch {
+                    Write-Warning "Exception running script analyzer on $($_.TargetObject)"
+                    Write-Warning $($_.Exception.StackTrace)
+                    throw
+                }
+            }
 
-      It "Does not throw while running Script Analyzer" {
-        $Config = $ScriptAnalyzer.Config
-        try {
-          $ScriptAnalyzer.Results = Invoke-ScriptAnalyzer @Config
-        } catch {
-          Write-Warning "Exception running script analyzer on $($_.TargetObject)"
-          Write-Warning $($_.Exception.StackTrace)
-          throw
-        }
-      }
-
-      forEach ($Rule in $ScriptAnalyzer.Rules.RuleName) {
-        It "Passes $Rule" {
-          if ($Failures = $ScriptAnalyzer.Results.Where( {$_.RuleName -like "*$Rule"})) {
-            throw ([Management.Automation.ErrorRecord]::new(
-              ([Exception]::new(($Failures.ForEach{$_.ScriptName + ":" + $_.Line + " " + $_.Message} -join "`n"))),
-              "ScriptAnalyzerViolation",
-              "SyntaxError",
-              $Failures))
-          }
+            forEach ($Rule in $ScriptAnalyzer.Rules.RuleName) {
+                It "Passes $Rule" {
+                    if ($Failures = $ScriptAnalyzer.Results.Where( {$_.RuleName -like "*$Rule"})) {
+                    throw ([Management.Automation.ErrorRecord]::new(
+                        ([Exception]::new(($Failures.ForEach{$_.ScriptName + ":" + $_.Line + " " + $_.Message} -join "`n"))),
+                        "ScriptAnalyzerViolation",
+                        "SyntaxError",
+                        $Failures))
+                    }
+                }
+            }
         }
       }
     }
     '@ | Set-Content "$(Build.SourcesDirectory)\Tests\PSScriptAnalzyer.Tests.ps1"
+
   displayName: Generate PSSA Tests
